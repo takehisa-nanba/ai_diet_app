@@ -16,3 +16,6 @@ app/web-build/
 # OS Files
 .DS_Store
 Thumbs.db
+
+images/
+*.jpg
