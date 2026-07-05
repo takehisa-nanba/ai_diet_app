@@ -99,3 +99,58 @@ def chat(request: ChatRequest):
         reply = "（うまく言葉が紡げませんでした…もう一度お願いします！）"
         
     return {"reply": reply}
+
+class PlanRequest(BaseModel):
+    food: str
+    profile: Optional[Profile] = None
+
+@app.post("/plan")
+def plan(request: PlanRequest):
+    user_info = ""
+    if request.profile:
+        p = request.profile
+        if p.weight: user_info += f"体重{p.weight}kg "
+        if p.targetWeight: user_info += f"目標{p.targetWeight}kg "
+        if p.activityLevel: user_info += f"活動{p.activityLevel} "
+        if p.age: user_info += f"年齢{p.age}歳"
+    
+    if not user_info.strip():
+        user_info = "未設定"
+
+    food = request.food
+    search_context = ""
+    try:
+        results = DDGS().text(f"{food} カロリー ダイエット レシピ工夫", max_results=2)
+        if results:
+            search_context = "【ウェブ検索参考情報】: " + " / ".join([res['body'] for res in results])
+    except Exception as e:
+        print("Web Search Error:", e)
+
+    prompt = f"""以下はプロのダイエットコーチによる食事提案です。ユーザーは今日どうしても「{food}」を食べたいと考えています。
+ダイエット中ですが我慢させず、その食材を組み込んだ1日の献立（朝・昼・夜）や、太りにくい食べ合わせ、調理の工夫を提案してください。
+
+{search_context}
+ユーザー情報: {user_info.strip()}
+食べたいもの: {food}
+提案:"""
+    
+    inputs = tokenizer(prompt, return_tensors="pt").to(model.device)
+    
+    with torch.no_grad():
+        tokens = model.generate(
+            **inputs,
+            max_new_tokens=250,
+            do_sample=True,
+            temperature=0.5,
+            top_p=0.9,
+            repetition_penalty=1.2,
+            pad_token_id=tokenizer.pad_token_id,
+        )
+    
+    output_text = tokenizer.decode(tokens[0], skip_special_tokens=True)
+    reply = output_text.replace(prompt, "").strip()
+    
+    if not reply:
+        reply = "（プランの作成に失敗しました。もう少し具体的な食べ物を入力してみてください！）"
+        
+    return {"plan": reply}

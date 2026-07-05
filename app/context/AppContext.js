@@ -15,7 +15,7 @@ export const AppProvider = ({ children }) => {
     reminderTime: '20:00', // デフォルト20:00
   });
   const [weightRecords, setWeightRecords] = useState([]);
-  const [messages, setMessages] = useState([]);
+  const [chatSessions, setChatSessions] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
@@ -51,16 +51,24 @@ export const AppProvider = ({ children }) => {
         }
         setWeightRecords(parsedRecords);
         
-        const storedMessages = await AsyncStorage.getItem('chatHistory');
-        if (storedMessages) {
-          setMessages(JSON.parse(storedMessages));
+        const storedSessions = await AsyncStorage.getItem('chatSessions');
+        if (storedSessions) {
+          setChatSessions(JSON.parse(storedSessions));
         } else {
-          setMessages([{ 
-            id: '1', 
-            text: 'こんにちは！見習いAIコーチです。「ムリなく痩せる」を目標に一緒に頑張りましょう！まずは右下のタブからプロフィールを入力してください。', 
-            sender: 'ai',
-            date: new Date().toISOString()
-          }]);
+          const oldMessages = await AsyncStorage.getItem('chatHistory');
+          if (oldMessages) {
+             const parsed = JSON.parse(oldMessages);
+             const newSession = {
+                id: Date.now().toString(),
+                title: '以前の相談',
+                updatedAt: new Date().toISOString(),
+                messages: parsed
+             };
+             setChatSessions([newSession]);
+             await AsyncStorage.setItem('chatSessions', JSON.stringify([newSession]));
+          } else {
+             setChatSessions([]);
+          }
         }
       } catch (e) {
         console.error('Failed to load data', e);
@@ -112,17 +120,30 @@ export const AppProvider = ({ children }) => {
     await AsyncStorage.setItem('weightRecords', JSON.stringify(newRecords));
   };
 
-  const addMessage = async (message) => {
-    const newMessages = [...messages, message];
-    setMessages(newMessages);
-    await AsyncStorage.setItem('chatHistory', JSON.stringify(newMessages));
+  const saveSession = async (session) => {
+    let newSessions;
+    const exists = chatSessions.find(s => s.id === session.id);
+    if (exists) {
+       newSessions = chatSessions.map(s => s.id === session.id ? session : s);
+    } else {
+       newSessions = [session, ...chatSessions];
+    }
+    newSessions.sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt));
+    setChatSessions(newSessions);
+    await AsyncStorage.setItem('chatSessions', JSON.stringify(newSessions));
+  };
+  
+  const deleteSession = async (id) => {
+    const newSessions = chatSessions.filter(s => s.id !== id);
+    setChatSessions(newSessions);
+    await AsyncStorage.setItem('chatSessions', JSON.stringify(newSessions));
   };
 
   return (
     <AppContext.Provider value={{
       profile, saveProfile,
       weightRecords, addWeightRecord, deleteWeightRecord,
-      messages, addMessage,
+      chatSessions, saveSession, deleteSession,
       isLoading
     }}>
       {children}

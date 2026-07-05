@@ -9,6 +9,7 @@ import { theme } from './theme';
 import DashboardScreen from './screens/DashboardScreen';
 import WeightRecordScreen from './screens/WeightRecordScreen';
 import TrainerScreen from './screens/TrainerScreen';
+import PlanScreen from './screens/PlanScreen';
 import ProfileScreen from './screens/ProfileScreen';
 
 const Tab = createBottomTabNavigator();
@@ -28,6 +29,8 @@ export default function App() {
                   iconName = focused ? 'bar-chart' : 'bar-chart-outline';
                 } else if (route.name === 'トレーナー') {
                   iconName = focused ? 'chatbubble' : 'chatbubble-outline';
+                } else if (route.name === '食事プラン') {
+                  iconName = focused ? 'restaurant' : 'restaurant-outline';
                 } else if (route.name === 'プロフィール') {
                   iconName = focused ? 'person' : 'person-outline';
                 }
@@ -44,6 +47,7 @@ export default function App() {
             <Tab.Screen name="ダッシュボード" component={DashboardScreen} options={{ headerTitle: '💪 FitTracker' }} />
             <Tab.Screen name="体重記録" component={WeightRecordScreen} options={{ headerTitle: '💪 FitTracker' }} />
             <Tab.Screen name="トレーナー" component={TrainerScreen} options={{ headerTitle: '💪 FitTracker' }} />
+            <Tab.Screen name="食事プラン" component={PlanScreen} options={{ headerTitle: '💪 FitTracker' }} />
             <Tab.Screen name="プロフィール" component={ProfileScreen} options={{ headerTitle: '💪 FitTracker' }} />
           </Tab.Navigator>
         </NavigationContainer>

@@ -31,15 +31,33 @@ training_args = TrainingArguments(
     learning_rate=5e-5,            # 学習のスピード
     use_cpu=True,                  # 安全のためCPUで実行（GPUがある場合は高速化可能）
     save_strategy="steps",         # 途中セーブのタイミング設定
-    save_steps=10,                 # 10ステップごとにセーブする
+    save_steps=5,                  # 5ステップごとにセーブする
     save_total_limit=2,            # 古いセーブデータは最新の2つまで残す
 )
+
+from transformers import TrainerCallback
+
+class SaveAlertCallback(TrainerCallback):
+    def on_step_end(self, args, state, control, **kwargs):
+        # 次のステップがセーブのタイミングなら警告を出す
+        if state.global_step > 0 and state.global_step % args.save_steps == 0:
+            print("\n" + "="*50)
+            print("🚨 【警告】これからセーブを開始します！")
+            print("🚨 破損を防ぐため、絶対に中断（Ctrl+C）しないでください！")
+            print("="*50 + "\n")
+
+    def on_save(self, args, state, control, **kwargs):
+        print("\n" + "="*50)
+        print("✅ 【完了】セーブが終わりました。")
+        print("✅ これで中断（Ctrl+C）しても安全です！")
+        print("="*50 + "\n")
 
 trainer = Trainer(
     model=model,
     args=training_args,
     train_dataset=tokenized_datasets,
     data_collator=data_collator,
+    callbacks=[SaveAlertCallback()], # アラート機能を組み込む
 )
 
 # 途中のセーブデータがあるかチェック
