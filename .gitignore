@@ -1,0 +1,18 @@
+# Python / Backend
+backend/venv/
+backend/__pycache__/
+backend/custom_diet_model/
+backend/results/
+backend/runs/
+backend/*.safetensors
+backend/*.bin
+
+# Node / Frontend
+app/node_modules/
+app/.expo/
+app/.expo-shared/
+app/web-build/
+
+# OS Files
+.DS_Store
+Thumbs.db
