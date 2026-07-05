@@ -2,7 +2,7 @@ import torch
 from transformers import AutoTokenizer, AutoModelForCausalLM
 
 print("特訓済みのAIコーチを呼び出しています...（数秒お待ちください）")
-model_dir = "./AI調整用/custom_diet_model"
+model_dir = "./ai_training/custom_diet_model"
 
 # 私たちが特訓した専用モデルを読み込む
 tokenizer = AutoTokenizer.from_pretrained(model_dir)

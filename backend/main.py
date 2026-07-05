@@ -20,7 +20,7 @@ app.add_middleware(
 
 print("AIモデルを読み込んでいます...（初回はダウンロードに数分かかります）")
 # 学習済みのモデルが存在すればそれを使い、なければベースモデルを使用する
-model_name = "./AI調整用/custom_diet_model" if os.path.exists("./AI調整用/custom_diet_model") else "cyberagent/open-calm-small"
+model_name = "./ai_training/custom_diet_model" if os.path.exists("./ai_training/custom_diet_model") else "cyberagent/open-calm-small"
 tokenizer = AutoTokenizer.from_pretrained(model_name)
 model = AutoModelForCausalLM.from_pretrained(model_name, device_map="auto", torch_dtype="auto")
 print(f"AIモデル（{model_name}）の読み込み完了！")
