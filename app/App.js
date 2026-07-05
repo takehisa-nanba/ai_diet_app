@@ -4,6 +4,7 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { AppProvider } from './context/AppContext';
+import { theme } from './theme';
 
 import DashboardScreen from './screens/DashboardScreen';
 import WeightRecordScreen from './screens/WeightRecordScreen';
@@ -32,7 +33,7 @@ export default function App() {
                 }
                 return <Ionicons name={iconName} size={size} color={color} />;
               },
-              tabBarActiveTintColor: '#2E8B57', // モックアップの緑色
+              tabBarActiveTintColor: theme.colors.primary,
               tabBarInactiveTintColor: 'gray',
               headerStyle: { backgroundColor: '#fff' },
               headerTitleStyle: { color: '#333', fontWeight: 'bold' },

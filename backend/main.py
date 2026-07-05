@@ -4,6 +4,8 @@ from pydantic import BaseModel
 from typing import Optional
 import torch
 from transformers import AutoModelForCausalLM, AutoTokenizer
+from duckduckgo_search import DDGS
+import os
 
 app = FastAPI(title="AI Diet Coach API")
 
@@ -17,10 +19,11 @@ app.add_middleware(
 )
 
 print("AIモデルを読み込んでいます...（初回はダウンロードに数分かかります）")
-model_name = "cyberagent/open-calm-small"
+# 学習済みのモデルが存在すればそれを使い、なければベースモデルを使用する
+model_name = "./custom_diet_model" if os.path.exists("./custom_diet_model") else "cyberagent/open-calm-small"
 tokenizer = AutoTokenizer.from_pretrained(model_name)
 model = AutoModelForCausalLM.from_pretrained(model_name, device_map="auto", torch_dtype="auto")
-print("AIモデルの読み込み完了！")
+print(f"AIモデル（{model_name}）の読み込み完了！")
 
 # スマホから送られてくるプロフィールデータの型定義
 class Profile(BaseModel):
@@ -53,15 +56,23 @@ def chat(request: ChatRequest):
     if not user_info.strip():
         user_info = "未設定"
 
-    # 【Few-Shotプロンプト】AIに「答え方の例」を見せて学習させる
-    prompt = f"""以下はダイエットコーチとユーザーの会話です。コーチはユーザーの情報に基づいて、ムリなく痩せるための優しいアドバイスを返します。
+    # RAG: ウェブ検索による最新情報の取得
+    user_message = request.message
+    search_context = ""
+    try:
+        # duckduckgoを用いてユーザーの質問に関連する情報をウェブ検索する
+        results = DDGS().text(user_message, max_results=2)
+        if results:
+            search_context = "【ウェブ検索参考情報】: " + " / ".join([res['body'] for res in results])
+    except Exception as e:
+        print("Web Search Error:", e)
 
-ユーザー情報: 体重105kg 目標90kg
-ユーザー: 今の体重はいくつだっけ？
-コーチ: 今の体重は105kgですね！目標の90kgに向けて、無理せず健康的に頑張りましょう！
+    # 【ハイブリッドプロンプト】基礎知識（学習データ）＋ 最新情報（検索結果）
+    prompt = f"""以下はプロのダイエットコーチとユーザーの会話です。コーチは医学的根拠とパーソナルトレーナーの原則に基づいて、相手を肯定しながら無理なく痩せるための最適化されたアドバイスを返します。
 
+{search_context}
 ユーザー情報: {user_info.strip()}
-ユーザー: {request.message}
+ユーザー: {user_message}
 コーチ:"""
     
     inputs = tokenizer(prompt, return_tensors="pt").to(model.device)
@@ -71,17 +82,17 @@ def chat(request: ChatRequest):
             **inputs,
             max_new_tokens=100,
             do_sample=True,
-            temperature=0.3,            # ★AIの創造性を下げて、事実（プロンプト）に忠実に答えるように変更
+            temperature=0.3,
             top_p=0.9,
-            repetition_penalty=1.5,     # 同じ単語の繰り返しを強く抑制
-            no_repeat_ngram_size=2,     # 全く同じフレーズの連続を禁止
+            repetition_penalty=1.5,
+            no_repeat_ngram_size=2,
             pad_token_id=tokenizer.pad_token_id,
         )
     
     output_text = tokenizer.decode(tokens[0], skip_special_tokens=True)
     reply = output_text.replace(prompt, "").strip()
     
-    # AIが永遠に話し続けないように、改行までの「最初の1文（ブロック）」だけを切り出す
+    # 改行までの「最初の1文（ブロック）」だけを切り出す
     reply = reply.split('\n')[0].strip()
     
     if not reply:

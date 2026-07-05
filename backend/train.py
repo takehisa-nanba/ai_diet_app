@@ -20,6 +20,8 @@ tokenized_datasets = dataset.map(tokenize_function, batched=True)
 # 言語モデル用のデータ整形ツール（正解ラベルを自動生成）
 data_collator = DataCollatorForLanguageModeling(tokenizer=tokenizer, mlm=False)
 
+import glob
+
 # 学習（特訓）のルール設定
 training_args = TrainingArguments(
     output_dir="./results",
@@ -28,6 +30,9 @@ training_args = TrainingArguments(
     logging_steps=2,               # 2ステップごとに進捗を表示
     learning_rate=5e-5,            # 学習のスピード
     use_cpu=True,                  # 安全のためCPUで実行（GPUがある場合は高速化可能）
+    save_strategy="steps",         # 途中セーブのタイミング設定
+    save_steps=10,                 # 10ステップごとにセーブする
+    save_total_limit=2,            # 古いセーブデータは最新の2つまで残す
 )
 
 trainer = Trainer(
@@ -37,8 +42,17 @@ trainer = Trainer(
     data_collator=data_collator,
 )
 
+# 途中のセーブデータがあるかチェック
+checkpoints = glob.glob("./results/checkpoint-*")
+resume_ckpt = True if len(checkpoints) > 0 else None
+
 print("見習いAIの猛特訓（ファインチューニング）を開始します！...")
-trainer.train()
+if resume_ckpt:
+    print("途中のセーブデータを発見しました！続きから再開します...")
+    trainer.train(resume_from_checkpoint=True)
+else:
+    print("最初から特訓を開始します...")
+    trainer.train()
 
 print("特訓が完了しました！賢くなったモデルを保存します...")
 os.makedirs("./custom_diet_model", exist_ok=True)
