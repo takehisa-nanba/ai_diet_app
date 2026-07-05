@@ -1,4 +1,4 @@
-# Python / Backend
+﻿# Python / Backend
 backend/venv/
 backend/__pycache__/
 backend/custom_diet_model/
@@ -6,6 +6,7 @@ backend/results/
 backend/runs/
 backend/*.safetensors
 backend/*.bin
+backend/ai_training/
 
 # Node / Frontend
 app/node_modules/

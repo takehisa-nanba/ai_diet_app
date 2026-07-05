@@ -4,7 +4,7 @@ import { AppContext } from '../context/AppContext';
 import { Ionicons } from '@expo/vector-icons';
 import { theme } from '../theme';
 
-const BACKEND_URL = Platform.OS === 'android' ? 'http://10.0.2.2:8000/chat' : 'http://localhost:8000/chat';
+const BACKEND_URL = 'http://192.168.0.8:8000/chat'; // PCのIPアドレスに固定
 
 export default function TrainerScreen() {
   const { profile, chatSessions, saveSession, deleteSession } = useContext(AppContext);

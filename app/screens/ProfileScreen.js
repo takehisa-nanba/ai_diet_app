@@ -1,8 +1,9 @@
 import React, { useContext } from 'react';
-import { View, Text, StyleSheet, TextInput, ScrollView, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, TextInput, ScrollView, TouchableOpacity, Alert, Platform } from 'react-native';
 import { AppContext } from '../context/AppContext';
 import { Ionicons } from '@expo/vector-icons';
 import { theme } from '../theme';
+import DateTimePicker from '@react-native-community/datetimepicker';
 
 export default function ProfileScreen() {
   const { profile, saveProfile } = useContext(AppContext);
@@ -10,6 +11,44 @@ export default function ProfileScreen() {
   const updateField = (field, value) => {
     saveProfile({ ...profile, [field]: value });
   };
+
+  const [showTargetDatePicker, setShowTargetDatePicker] = React.useState(false);
+  const [showReminderTimePicker, setShowReminderTimePicker] = React.useState(false);
+
+  const handleSave = () => {
+    saveProfile(profile);
+    if (Platform.OS === 'web') {
+      window.alert('設定を保存しました');
+    } else {
+      Alert.alert('保存完了', 'プロフィール設定を保存しました');
+    }
+  };
+
+  const parseTargetDate = () => {
+    if (profile.targetDate) {
+      const d = new Date(profile.targetDate);
+      if (!isNaN(d.getTime())) return d;
+    }
+    const d = new Date();
+    d.setMonth(d.getMonth() + 1); // デフォルトは1ヶ月後
+    return d;
+  };
+
+  const parseReminderTime = () => {
+    if (profile.reminderTime) {
+      const [hours, minutes] = profile.reminderTime.split(':');
+      const d = new Date();
+      d.setHours(parseInt(hours, 10) || 7);
+      d.setMinutes(parseInt(minutes, 10) || 0);
+      return d;
+    }
+    const d = new Date();
+    d.setHours(7, 0, 0, 0);
+    return d;
+  };
+
+  const formatDateStr = (d) => `${d.getFullYear()}/${String(d.getMonth() + 1).padStart(2, '0')}/${String(d.getDate()).padStart(2, '0')}`;
+  const formatTimeStr = (d) => `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
 
   // BMI計算
   let bmi = 0;
@@ -75,6 +114,35 @@ export default function ProfileScreen() {
 
         <View style={styles.row}>
           <View style={styles.inputGroup}>
+            <Text style={styles.label}>目標日付</Text>
+            {Platform.OS === 'web' ? (
+              <View style={styles.inputWithIcon}>
+                {React.createElement('input', {
+                  type: 'date',
+                  value: profile.targetDate ? profile.targetDate.split('T')[0] : '',
+                  onChange: (e) => {
+                    if (e.target.value) {
+                      updateField('targetDate', e.target.value);
+                    }
+                  },
+                  style: { flex: 1, padding: 12, fontSize: 16, border: 'none', outline: 'none', backgroundColor: 'transparent', color: theme.colors.text }
+                })}
+              </View>
+            ) : (
+              <TouchableOpacity style={styles.inputWithIcon} onPress={() => setShowTargetDatePicker(true)}>
+                <Text style={styles.inputFlexText}>
+                  {profile.targetDate ? formatDateStr(new Date(profile.targetDate)) : '未設定'}
+                </Text>
+                <Ionicons name="calendar-outline" size={16} color="#999" style={styles.chevron} />
+              </TouchableOpacity>
+            )}
+          </View>
+          {/* 追加のスペースが必要な場合はここにダミービューを置くか、そのままにしておく */}
+          <View style={styles.inputGroup}></View>
+        </View>
+
+        <View style={styles.row}>
+          <View style={styles.inputGroup}>
             <Text style={styles.label}>身長 (cm)</Text>
             <TextInput
               style={styles.input}
@@ -135,16 +203,27 @@ export default function ProfileScreen() {
         )}
 
         <Text style={[styles.label, { marginTop: 8 }]}>通知時刻</Text>
-        <View style={styles.timeInputContainer}>
-          <TextInput
-            style={styles.timeInput}
-            value={profile.reminderTime}
-            onChangeText={(t) => updateField('reminderTime', t)}
-            placeholder="7:00"
-            maxLength={5}
-          />
-          <Ionicons name="chevron-down" size={20} color="#999" />
-        </View>
+        {Platform.OS === 'web' ? (
+          <View style={[styles.inputWithIcon, { marginBottom: 16 }]}>
+            {React.createElement('input', {
+              type: 'time',
+              value: profile.reminderTime || '07:00',
+              onChange: (e) => {
+                if (e.target.value) {
+                  updateField('reminderTime', e.target.value);
+                }
+              },
+              style: { flex: 1, padding: 12, fontSize: 16, border: 'none', outline: 'none', backgroundColor: 'transparent', color: theme.colors.text }
+            })}
+          </View>
+        ) : (
+          <TouchableOpacity style={[styles.inputWithIcon, { marginBottom: 16 }]} onPress={() => setShowReminderTimePicker(true)}>
+            <Text style={styles.inputFlexText}>
+              {profile.reminderTime || '07:00'}
+            </Text>
+            <Ionicons name="time-outline" size={16} color="#999" style={styles.chevron} />
+          </TouchableOpacity>
+        )}
 
         <Text style={styles.reminderNote}>
           ※ アプリを開いている時間帯に通知が届きます。毎日この時間帯にブラウザを開いておいてください。
@@ -167,7 +246,35 @@ export default function ProfileScreen() {
         </View>
       </View>
 
-      <TouchableOpacity style={styles.saveProfileBtn} onPress={() => saveProfile(profile)}>
+      {showTargetDatePicker && Platform.OS !== 'web' && (
+        <DateTimePicker
+          value={parseTargetDate()}
+          mode="date"
+          display="default"
+          onChange={(event, selectedDate) => {
+            setShowTargetDatePicker(false);
+            if (selectedDate) {
+              updateField('targetDate', selectedDate.toISOString());
+            }
+          }}
+        />
+      )}
+      {showReminderTimePicker && Platform.OS !== 'web' && (
+        <DateTimePicker
+          value={parseReminderTime()}
+          mode="time"
+          display="default"
+          onChange={(event, selectedDate) => {
+            setShowReminderTimePicker(false);
+            if (selectedDate) {
+              const formattedTime = `${String(selectedDate.getHours()).padStart(2, '0')}:${String(selectedDate.getMinutes()).padStart(2, '0')}`;
+              updateField('reminderTime', formattedTime);
+            }
+          }}
+        />
+      )}
+
+      <TouchableOpacity style={styles.saveProfileBtn} onPress={handleSave}>
         <Text style={styles.saveProfileBtnText}>プロフィールを保存</Text>
       </TouchableOpacity>
 
@@ -193,6 +300,10 @@ const styles = StyleSheet.create({
   label: { fontSize: 14, color: theme.colors.text, marginBottom: 8, fontWeight: 'bold' },
   input: { backgroundColor: theme.colors.card, borderRadius: 8, padding: 12, fontSize: 16, borderWidth: 1, borderColor: theme.colors.border, color: theme.colors.text },
   
+  inputWithIcon: { flexDirection: 'row', alignItems: 'center', backgroundColor: theme.colors.card, borderRadius: 8, borderWidth: 1, borderColor: theme.colors.border },
+  inputFlexText: { flex: 1, padding: 12, fontSize: 16, color: theme.colors.text },
+  chevron: { paddingRight: 12 },
+  
   activityVerticalContainer: { marginTop: 4 },
   activityVerticalButton: { backgroundColor: theme.colors.card, padding: 14, borderRadius: 8, marginBottom: 12, borderWidth: 1, borderColor: theme.colors.border },
   activityVerticalButtonActive: { backgroundColor: theme.colors.primaryLight, borderColor: theme.colors.primaryDark },
@@ -201,8 +312,6 @@ const styles = StyleSheet.create({
   
   reminderBanner: { flexDirection: 'row', alignItems: 'center', backgroundColor: theme.colors.primaryLight, padding: 12, borderRadius: 8, marginBottom: 16 },
   reminderBannerText: { color: theme.colors.primaryDark, fontSize: 14, marginLeft: 8 },
-  timeInputContainer: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', borderWidth: 1, borderColor: theme.colors.border, borderRadius: 8, paddingHorizontal: 16, paddingVertical: 12, backgroundColor: theme.colors.card, marginBottom: 12 },
-  timeInput: { fontSize: 16, color: theme.colors.text, flex: 1 },
   reminderNote: { fontSize: 12, color: theme.colors.textLight, marginBottom: 16, lineHeight: 18 },
   reminderButtonRow: { flexDirection: 'row', justifyContent: 'space-between' },
   saveReminderBtn: { flex: 0.65, backgroundColor: theme.colors.primaryDark, paddingVertical: 12, borderRadius: 8, alignItems: 'center' },

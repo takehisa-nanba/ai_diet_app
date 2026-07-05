@@ -16,9 +16,9 @@
     "react-dom": "19.2.3",
     "react-native": "0.86.0",
     "react-native-chart-kit": "^7.0.1",
-    "react-native-safe-area-context": "^5.8.0",
+    "react-native-safe-area-context": "~5.7.0",
     "react-native-screens": "^4.25.2",
-    "react-native-svg": "^15.15.5",
+    "react-native-svg": "15.15.4",
     "react-native-web": "^0.21.2"
   },
   "scripts": {
@@ -27,5 +27,8 @@
     "ios": "expo start --ios --host lan",
     "web": "expo start --web --host lan"
   },
-  "private": true
+  "private": true,
+  "devDependencies": {
+    "@expo/ngrok": "^4.1.3"
+  }
 }

@@ -20,7 +20,7 @@ app.add_middleware(
 
 print("AIモデルを読み込んでいます...（初回はダウンロードに数分かかります）")
 # 学習済みのモデルが存在すればそれを使い、なければベースモデルを使用する
-model_name = "./custom_diet_model" if os.path.exists("./custom_diet_model") else "cyberagent/open-calm-small"
+model_name = "./AI調整用/custom_diet_model" if os.path.exists("./AI調整用/custom_diet_model") else "cyberagent/open-calm-small"
 tokenizer = AutoTokenizer.from_pretrained(model_name)
 model = AutoModelForCausalLM.from_pretrained(model_name, device_map="auto", torch_dtype="auto")
 print(f"AIモデル（{model_name}）の読み込み完了！")
@@ -67,13 +67,8 @@ def chat(request: ChatRequest):
     except Exception as e:
         print("Web Search Error:", e)
 
-    # 【ハイブリッドプロンプト】基礎知識（学習データ）＋ 最新情報（検索結果）
-    prompt = f"""以下はプロのダイエットコーチとユーザーの会話です。コーチは医学的根拠とパーソナルトレーナーの原則に基づいて、相手を肯定しながら無理なく痩せるための最適化されたアドバイスを返します。
-
-{search_context}
-ユーザー情報: {user_info.strip()}
-ユーザー: {user_message}
-コーチ:"""
+    # 特訓データと全く同じフォーマットに合わせる（余計な指示を入れると過学習モデルが混乱するためシンプルにする）
+    prompt = f"ユーザー: {user_message}\nAIコーチ:"
     
     inputs = tokenizer(prompt, return_tensors="pt").to(model.device)
     
@@ -81,19 +76,22 @@ def chat(request: ChatRequest):
         tokens = model.generate(
             **inputs,
             max_new_tokens=100,
-            do_sample=True,
-            temperature=0.3,
+            do_sample=True,          # 必須：柔軟性のスイッチ
+            temperature=0.7,         # アドリブ度を上げる
             top_p=0.9,
-            repetition_penalty=1.5,
-            no_repeat_ngram_size=2,
+            repetition_penalty=1.2,
             pad_token_id=tokenizer.pad_token_id,
+            eos_token_id=tokenizer.eos_token_id
         )
     
     output_text = tokenizer.decode(tokens[0], skip_special_tokens=True)
     reply = output_text.replace(prompt, "").strip()
     
-    # 改行までの「最初の1文（ブロック）」だけを切り出す
-    reply = reply.split('\n')[0].strip()
+    # ユーザー発言の先読みや改行以降をカットする安全装置
+    if "\nユーザー:" in reply:
+        reply = reply.split("\nユーザー:")[0].strip()
+    if "\n" in reply:
+        reply = reply.split('\n')[0].strip()
     
     if not reply:
         reply = "（うまく言葉が紡げませんでした…もう一度お願いします！）"
@@ -126,29 +124,29 @@ def plan(request: PlanRequest):
     except Exception as e:
         print("Web Search Error:", e)
 
-    prompt = f"""以下はプロのダイエットコーチによる食事提案です。ユーザーは今日どうしても「{food}」を食べたいと考えています。
-ダイエット中ですが我慢させず、その食材を組み込んだ1日の献立（朝・昼・夜）や、太りにくい食べ合わせ、調理の工夫を提案してください。
-
-{search_context}
-ユーザー情報: {user_info.strip()}
-食べたいもの: {food}
-提案:"""
+    # 特訓データと同じチャット形式で献立作成を依頼する
+    prompt = f"ユーザー: 今日はどうしても「{food}」が食べたい気分です。ダイエット中ですが我慢せずに食べるための工夫や、前後の食事のアドバイスを教えてください！\nAIコーチ:"
     
     inputs = tokenizer(prompt, return_tensors="pt").to(model.device)
     
     with torch.no_grad():
         tokens = model.generate(
             **inputs,
-            max_new_tokens=250,
+            max_new_tokens=150,      # 献立用に少し長めに生成
             do_sample=True,
-            temperature=0.5,
+            temperature=0.7,
             top_p=0.9,
             repetition_penalty=1.2,
             pad_token_id=tokenizer.pad_token_id,
+            eos_token_id=tokenizer.eos_token_id
         )
     
     output_text = tokenizer.decode(tokens[0], skip_special_tokens=True)
     reply = output_text.replace(prompt, "").strip()
+    
+    # ユーザー発言の先読みカット
+    if "\nユーザー:" in reply:
+        reply = reply.split("\nユーザー:")[0].strip()
     
     if not reply:
         reply = "（プランの作成に失敗しました。もう少し具体的な食べ物を入力してみてください！）"
